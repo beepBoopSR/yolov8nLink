@@ -1,0 +1,1025 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Person Detection</title>
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+            rel="stylesheet"
+        />
+        <style>
+            :root {
+                --bg-primary: #f8fafc;
+                --bg-card: #ffffff;
+                --accent: #22c55e;
+                --accent-glow: rgba(34, 197, 94, 0.1);
+                --danger: #ef4444;
+                --success: #22c55e;
+                --text: #1e293b;
+                --text-dim: #64748b;
+                --border-color: #cbd5e1;
+                --border-width: 2px;
+                --radius: 8px;
+                --shadow: none;
+                --shadow-lg: none;
+            }
+
+            [data-theme="dark"] {
+                --bg-primary: #0f172a;
+                --bg-card: #1e293b;
+                --text: #f1f5f9;
+                --text-dim: #94a3b8;
+                --border-color: #334155;
+                --accent-glow: rgba(34, 197, 94, 0.2);
+            }
+
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            html,
+            body {
+                height: 100%;
+                overflow: hidden;
+                background: var(--bg-primary);
+            }
+
+            body {
+                font-family:
+                    "Inter",
+                    -apple-system,
+                    sans-serif;
+                display: flex;
+                flex-direction: column;
+                padding: 24px;
+                color: var(--text);
+                -webkit-font-smoothing: antialiased;
+                justify-content: center;
+                transition:
+                    background-color 0.3s ease,
+                    color 0.3s ease;
+            }
+
+            .theme-toggle {
+                position: fixed;
+                top: 24px;
+                right: 24px;
+                z-index: 100;
+                width: 44px;
+                height: 44px;
+                border-radius: 50%;
+                background: var(--bg-card);
+                border: var(--border-width) solid var(--border-color);
+                color: var(--text);
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 1.2rem;
+                transition: all 0.2s ease;
+            }
+
+            .theme-toggle:hover {
+                border-color: var(--accent);
+                transform: scale(1.05);
+            }
+
+            .main-container {
+                display: flex;
+                gap: 20px;
+                width: 100%;
+                max-width: 1200px;
+                height: 90vh;
+                margin: 0 auto;
+                justify-content: center;
+                align-items: stretch;
+            }
+
+            .video-section {
+                background: var(--bg-card);
+                border-radius: var(--radius);
+                padding: 12px;
+                border: var(--border-width) solid var(--border-color);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-width: 0;
+                min-height: 0;
+                overflow: hidden;
+                height: 100%;
+                flex: 1;
+                position: relative;
+            }
+
+            .video-section canvas {
+                height: 100%;
+                width: auto;
+                max-width: 100%;
+                object-fit: contain;
+                border-radius: calc(var(--radius) / 2);
+                background: #000;
+            }
+
+            .sidebar {
+                width: 300px;
+                flex: 0 0 300px;
+                display: flex;
+                flex-direction: column;
+                gap: 16px;
+                height: 100%;
+                overflow: hidden;
+            }
+
+            .sidebar > .card:first-child {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                min-height: 0;
+            }
+
+            .card {
+                background: var(--bg-card);
+                border-radius: var(--radius);
+                padding: 20px;
+                border: var(--border-width) solid var(--border-color);
+                flex-shrink: 0;
+            }
+
+            .card-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                margin-bottom: 16px;
+            }
+
+            .card-title {
+                font-size: 0.75rem;
+                font-weight: 700;
+                color: var(--text-dim);
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+            }
+
+            .led-status {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 4px 12px;
+                background: var(--bg-primary);
+                border-radius: var(--radius);
+                border: var(--border-width) solid var(--border-color);
+            }
+
+            .led-indicator {
+                width: 8px;
+                height: 8px;
+                border-radius: 2px;
+                background: var(--text-dim);
+                transition: all 0.2s ease;
+            }
+
+            .led-indicator.on {
+                background: var(--success);
+            }
+
+            .led-status-text {
+                font-size: 0.7rem;
+                font-weight: 700;
+                color: var(--text);
+            }
+
+            .detections-list {
+                flex: 1;
+                overflow-y: auto;
+                margin-right: -8px;
+                padding-right: 8px;
+                min-height: 0;
+            }
+
+            .detections-list::-webkit-scrollbar {
+                width: 6px;
+            }
+
+            .detections-list::-webkit-scrollbar-thumb {
+                background: var(--border-color);
+                border-radius: 3px;
+            }
+
+            .detection-item {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 12px;
+                margin-bottom: 8px;
+                background: var(--bg-primary);
+                border-radius: calc(var(--radius) / 2);
+                border: var(--border-width) solid var(--border-color);
+                transition: all 0.1s ease;
+            }
+
+            .detection-item:hover {
+                transform: translateX(4px);
+                border-color: var(--text-dim);
+            }
+
+            .detection-item.active-trigger-item {
+                border-color: var(--accent);
+                background: var(--accent-glow);
+            }
+
+            .detection-info {
+                display: flex;
+                flex-direction: column;
+                gap: 2px;
+            }
+
+            .detection-class {
+                font-weight: 700;
+                font-size: 0.9rem;
+                color: var(--text);
+            }
+
+            .detection-class.active-trigger {
+                color: var(--accent);
+            }
+
+            .detection-bbox {
+                font-size: 0.65rem;
+                color: var(--text-dim);
+                font-family: monospace;
+            }
+
+            .detection-confidence {
+                text-align: right;
+            }
+
+            .confidence-value {
+                font-size: 1rem;
+                font-weight: 800;
+            }
+
+            .confidence-value.high {
+                color: var(--success);
+            }
+            .confidence-value.medium {
+                color: #f59e0b;
+            }
+            .confidence-value.low {
+                color: var(--danger);
+            }
+
+            .confidence-label {
+                font-size: 0.6rem;
+                color: var(--text-dim);
+                text-transform: uppercase;
+                font-weight: 600;
+            }
+
+            .no-detections {
+                text-align: center;
+                padding: 40px 20px;
+                color: var(--text-dim);
+                font-size: 0.85rem;
+                font-style: italic;
+            }
+
+            .stats-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 12px;
+            }
+
+            .stat-box {
+                background: var(--bg-primary);
+                padding: 16px;
+                border-radius: var(--radius);
+                text-align: center;
+                border: var(--border-width) solid var(--border-color);
+            }
+
+            .stat-value {
+                font-size: 1.5rem;
+                font-weight: 800;
+                color: var(--text);
+                line-height: 1;
+            }
+
+            .stat-label {
+                font-size: 0.65rem;
+                font-weight: 600;
+                color: var(--text-dim);
+                text-transform: uppercase;
+                margin-top: 6px;
+            }
+
+            .config-row {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 8px 0;
+                border-bottom: 1px solid var(--border);
+            }
+
+            .config-row:last-child {
+                border-bottom: none;
+            }
+
+            .config-label {
+                font-size: 0.8rem;
+                font-weight: 600;
+                color: var(--text-dim);
+            }
+
+            .config-value {
+                font-size: 0.8rem;
+                font-weight: 700;
+                color: var(--accent);
+            }
+
+            .config-row select,
+            input[type="text"] {
+                padding: 8px 12px;
+                font-size: 0.85rem;
+                font-weight: 500;
+                border: 1px solid var(--border);
+                border-radius: 10px;
+                background: var(--bg-primary);
+                color: var(--text);
+                cursor: pointer;
+                transition: all 0.2s ease;
+            }
+
+            .config-row select:focus,
+            input[type="text"]:focus {
+                outline: none;
+                border-color: var(--accent);
+                background: #fff;
+                box-shadow: 0 0 0 3px var(--accent-glow);
+            }
+
+            input[type="text"] {
+                cursor: text;
+                width: 100%;
+            }
+
+            .controls {
+                display: flex;
+                gap: 12px;
+                margin-top: 8px;
+            }
+
+            button {
+                flex: 1;
+                padding: 14px;
+                font-size: 0.9rem;
+                font-weight: 700;
+                border: var(--border-width) solid transparent;
+                border-radius: var(--radius);
+                cursor: pointer;
+                transition: all 0.1s ease;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+            }
+
+            button.primary {
+                background: var(--accent);
+                color: white;
+                border-color: var(--accent);
+            }
+
+            button.primary:hover {
+                filter: brightness(1.05);
+            }
+
+            button.primary:active {
+                transform: translateY(0);
+            }
+
+            button.secondary {
+                background: var(--bg-card);
+                color: var(--text);
+                border-color: var(--border-color);
+            }
+
+            button.secondary:hover {
+                background: var(--bg-primary);
+                border-color: var(--text-dim);
+            }
+
+            .source-btns {
+                display: flex;
+                gap: 8px;
+                margin-bottom: 12px;
+            }
+
+            .source-btns button {
+                padding: 10px;
+                font-size: 0.8rem;
+            }
+
+            @media (max-width: 900px) {
+                body {
+                    padding: 16px;
+                    overflow-y: auto;
+                }
+                .main-container {
+                    flex-direction: column;
+                    align-items: center;
+                    height: auto;
+                    width: 100%;
+                }
+                .video-section {
+                    width: 100%;
+                    height: auto;
+                    aspect-ratio: 4/3;
+                    max-height: 50vh;
+                }
+                .sidebar {
+                    width: 100%;
+                    max-width: 500px;
+                    flex: 0 0 auto;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <button
+            class="theme-toggle"
+            id="theme-btn"
+            onclick="toggleTheme()"
+            title="Toggle Theme"
+        >
+            🌙
+        </button>
+        <div class="main-container">
+            <div class="video-section">
+                <canvas id="output"></canvas>
+            </div>
+
+            <div class="sidebar">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Detections</span>
+                        <div class="led-status">
+                            <div class="led-indicator" id="led-indicator"></div>
+                            <span class="led-status-text" id="led-status-text"
+                                >OFF</span
+                            >
+                        </div>
+                    </div>
+                    <div class="detections-list" id="detections-list">
+                        <p class="no-detections">No objects detected</p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Stats</span>
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stat-box">
+                            <div class="stat-value" id="total-detections">
+                                0
+                            </div>
+                            <div class="stat-label">Objects</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-value" id="fps">0</div>
+                            <div class="stat-label">FPS</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Camera Source</span>
+                    </div>
+                    <div class="source-btns">
+                        <button
+                            class="primary"
+                            onclick="switchSource('camera')"
+                        >
+                            Camera
+                        </button>
+                        <button
+                            class="secondary"
+                            onclick="switchSource('ipcam')"
+                        >
+                            IP Cam
+                        </button>
+                    </div>
+                    <input
+                        type="text"
+                        id="camera-source"
+                        placeholder="Camera index (0)"
+                        value="0"
+                    />
+                    <input
+                        type="text"
+                        id="ipcam-url"
+                        placeholder="MJPEG URL"
+                        value="http://172.254.71.237/mjpg/video.mjpg"
+                        style="margin-top: 8px; display: none"
+                    />
+                </div>
+
+                <div class="card" style="margin-top: 10px">
+                    <div class="card-header">
+                        <span class="card-title">Config</span>
+                    </div>
+                    <div class="config-row">
+                        <span class="config-label">Trigger LED on</span>
+                        <select
+                            id="trigger-class"
+                            onchange="updateTriggerClass()"
+                        >
+                            <option value="person">person</option>
+                            <option value="bicycle">bicycle</option>
+                            <option value="car">car</option>
+                            <option value="motorcycle">motorcycle</option>
+                            <option value="airplane">airplane</option>
+                            <option value="bus">bus</option>
+                            <option value="train">train</option>
+                            <option value="truck">truck</option>
+                            <option value="boat">boat</option>
+                            <option value="traffic light">traffic light</option>
+                            <option value="fire hydrant">fire hydrant</option>
+                            <option value="stop sign">stop sign</option>
+                            <option value="parking meter">parking meter</option>
+                            <option value="bench">bench</option>
+                            <option value="bird">bird</option>
+                            <option value="cat">cat</option>
+                            <option value="dog">dog</option>
+                            <option value="horse">horse</option>
+                            <option value="sheep">sheep</option>
+                            <option value="cow">cow</option>
+                            <option value="elephant">elephant</option>
+                            <option value="bear">bear</option>
+                            <option value="zebra">zebra</option>
+                            <option value="giraffe">giraffe</option>
+                            <option value="backpack">backpack</option>
+                            <option value="umbrella">umbrella</option>
+                            <option value="handbag">handbag</option>
+                            <option value="tie">tie</option>
+                            <option value="suitcase">suitcase</option>
+                            <option value="frisbee">frisbee</option>
+                            <option value="skis">skis</option>
+                            <option value="snowboard">snowboard</option>
+                            <option value="sports ball">sports ball</option>
+                            <option value="kite">kite</option>
+                            <option value="baseball bat">baseball bat</option>
+                            <option value="baseball glove">
+                                baseball glove
+                            </option>
+                            <option value="skateboard">skateboard</option>
+                            <option value="surfboard">surfboard</option>
+                            <option value="tennis racket">tennis racket</option>
+                            <option value="bottle">bottle</option>
+                            <option value="wine glass">wine glass</option>
+                            <option value="cup">cup</option>
+                            <option value="fork">fork</option>
+                            <option value="knife">knife</option>
+                            <option value="spoon">spoon</option>
+                            <option value="bowl">bowl</option>
+                            <option value="banana">banana</option>
+                            <option value="apple">apple</option>
+                            <option value="sandwich">sandwich</option>
+                            <option value="orange">orange</option>
+                            <option value="broccoli">broccoli</option>
+                            <option value="carrot">carrot</option>
+                            <option value="hot dog">hot dog</option>
+                            <option value="pizza">pizza</option>
+                            <option value="donut">donut</option>
+                            <option value="cake">cake</option>
+                            <option value="chair">chair</option>
+                            <option value="couch">couch</option>
+                            <option value="potted plant">potted plant</option>
+                            <option value="bed">bed</option>
+                            <option value="dining table">dining table</option>
+                            <option value="toilet">toilet</option>
+                            <option value="tv">tv</option>
+                            <option value="laptop">laptop</option>
+                            <option value="mouse">mouse</option>
+                            <option value="remote">remote</option>
+                            <option value="keyboard">keyboard</option>
+                            <option value="cell phone">cell phone</option>
+                            <option value="microwave">microwave</option>
+                            <option value="oven">oven</option>
+                            <option value="toaster">toaster</option>
+                            <option value="sink">sink</option>
+                            <option value="refrigerator">refrigerator</option>
+                            <option value="book">book</option>
+                            <option value="clock">clock</option>
+                            <option value="vase">vase</option>
+                            <option value="scissors">scissors</option>
+                            <option value="teddy bear">teddy bear</option>
+                            <option value="hair drier">hair drier</option>
+                            <option value="toothbrush">toothbrush</option>
+                        </select>
+                    </div>
+                    <div class="config-row">
+                        <span class="config-label">Threshold</span>
+                        <span class="config-value">80%</span>
+                    </div>
+                </div>
+
+                <div class="controls">
+                    <button class="primary" onclick="startDetection()">
+                        Start
+                    </button>
+                    <button class="secondary" onclick="stopDetection()">
+                        Stop
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            const canvas = document.getElementById("output");
+            const ctx = canvas.getContext("2d");
+            const detectionsList = document.getElementById("detections-list");
+            const totalDetectionsEl =
+                document.getElementById("total-detections");
+            const fpsEl = document.getElementById("fps");
+            const ledIndicator = document.getElementById("led-indicator");
+            const ledStatusText = document.getElementById("led-status-text");
+
+            let isRunning = false;
+            let animationId = null;
+            let lastFrameTime = 0;
+            let frameCount = 0;
+            let fpsUpdateInterval = null;
+            let isTriggerActive = false;
+            let isSwitching = false;
+
+            canvas.width = 640;
+            canvas.height = 480;
+
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#00b894";
+            ctx.font = "18px Inter";
+            ctx.textAlign = "center";
+            ctx.fillText(
+                'Click "Start" to begin',
+                canvas.width / 2,
+                canvas.height / 2,
+            );
+
+            // Set default camera button active
+            document
+                .querySelectorAll(".source-btns button")[0]
+                .classList.add("active");
+
+            let currentImg = new Image();
+            currentImg.onload = () => {
+                if (isSwitching) return;
+
+                // Only resize if significantly different to avoid flickering
+                if (
+                    Math.abs(canvas.width - currentImg.width) > 5 ||
+                    Math.abs(canvas.height - currentImg.height) > 5
+                ) {
+                    canvas.width = currentImg.width;
+                    canvas.height = currentImg.height;
+                }
+                ctx.drawImage(currentImg, 0, 0);
+            };
+
+            let cameraSource = "0";
+            let triggerClass = "person";
+
+            async function updateTriggerClass() {
+                triggerClass = document.getElementById("trigger-class").value;
+                try {
+                    // Fixed parameter name from 'class' to 'cls' to match main.py
+                    await fetch(
+                        "/config/trigger?cls=" +
+                            encodeURIComponent(triggerClass),
+                    );
+                    console.log("Trigger class updated to:", triggerClass);
+                } catch (e) {
+                    console.error(
+                        "Failed to update trigger class on server:",
+                        e,
+                    );
+                }
+            }
+
+            function showLoading(message, clear = true) {
+                const isDark =
+                    document.documentElement.getAttribute("data-theme") ===
+                    "dark";
+                const bgColor = isDark ? "#1e293b" : "#ffffff";
+
+                if (clear) {
+                    ctx.fillStyle = bgColor;
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                } else {
+                    ctx.fillStyle = isDark
+                        ? "rgba(30, 41, 59, 0.4)"
+                        : "rgba(255, 255, 255, 0.4)";
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                }
+                ctx.fillStyle = "#22c55e";
+                ctx.font = "bold 20px Inter";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(message, canvas.width / 2, canvas.height / 2);
+            }
+
+            let currentMode = "camera";
+
+            async function switchSource(mode) {
+                if (isSwitching) return;
+                isSwitching = true;
+
+                currentMode = mode;
+                const camInput = document.getElementById("camera-source");
+                const ipcamInput = document.getElementById("ipcam-url");
+                const btns = document.querySelectorAll(".source-btns button");
+
+                // Remove both active state and primary styling from all buttons
+                btns.forEach((btn) => {
+                    btn.classList.remove("active", "primary");
+                    btn.classList.add("secondary");
+                });
+
+                if (mode === "ipcam") {
+                    cameraSource = ipcamInput.value.trim();
+                    camInput.style.display = "none";
+                    ipcamInput.style.display = "block";
+                    btns[1].classList.add("active", "primary");
+                    btns[1].classList.remove("secondary");
+                } else {
+                    cameraSource = camInput.value.trim();
+                    camInput.style.display = "block";
+                    ipcamInput.style.display = "none";
+                    btns[0].classList.add("active", "primary");
+                    btns[0].classList.remove("secondary");
+                }
+
+                // Always show loading when switching
+                showLoading("Switching source...");
+
+                try {
+                    const response = await fetch(
+                        "/camera/set?source=" +
+                            encodeURIComponent(cameraSource),
+                        { method: "POST" },
+                    );
+                    if (!response.ok)
+                        throw new Error("Failed to set camera source");
+                    const data = await response.json();
+                    console.log("Source switched:", data);
+
+                    // If not running, keep the loading screen with a success message
+                    if (!isRunning) {
+                        showLoading(
+                            "Source changed to " +
+                                mode +
+                                '. Click "Start" to begin',
+                            false,
+                        );
+                    }
+                } catch (error) {
+                    console.error("Error switching source:", error);
+                    showLoading("Error: " + error.message);
+                } finally {
+                    // Short delay to ensure loading screen was visible before being overridden
+                    setTimeout(() => {
+                        isSwitching = false;
+                    }, 100);
+                }
+            }
+
+            async function fetchFrame() {
+                const isDark =
+                    document.documentElement.getAttribute("data-theme") ===
+                    "dark";
+                const bgColor = isDark ? "#1e293b" : "#ffffff";
+
+                try {
+                    const response = await fetch("/detect");
+                    if (!response.ok) {
+                        if (response.status === 503) {
+                            ctx.fillStyle = bgColor;
+                            ctx.fillRect(0, 0, canvas.width, canvas.height);
+                            ctx.fillStyle = "#22c55e";
+                            ctx.font = "bold 20px Inter";
+                            ctx.textAlign = "center";
+                            ctx.textBaseline = "middle";
+                            ctx.fillText(
+                                "Initializing camera...",
+                                canvas.width / 2,
+                                canvas.height / 2,
+                            );
+                            return;
+                        }
+                        const errorData = await response.json();
+                        throw new Error(
+                            errorData.detail || "Failed to fetch detection",
+                        );
+                    }
+                    const data = await response.json();
+
+                    if (data.image) {
+                        currentImg.src = data.image;
+                    } else {
+                        ctx.fillStyle = bgColor;
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+                        ctx.fillStyle = "#64748b";
+                        ctx.font = "bold 20px Inter";
+                        ctx.textAlign = "center";
+                        ctx.textBaseline = "middle";
+                        ctx.fillText(
+                            "Waiting for camera...",
+                            canvas.width / 2,
+                            canvas.height / 2,
+                        );
+                    }
+
+                    updateDetections(data.detections || []);
+                } catch (error) {
+                    console.error("Error fetching frame:", error);
+                    ctx.fillStyle = bgColor;
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = "#ef4444";
+                    ctx.font = "bold 20px Inter";
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    ctx.fillText(
+                        "Error: " + error.message,
+                        canvas.width / 2,
+                        canvas.height / 2,
+                    );
+                }
+            }
+
+            function updateDetections(detections) {
+                totalDetectionsEl.textContent = detections.length;
+
+                // Use triggerClass instead of hardcoded 'person'
+                const objectDetected = detections.some(
+                    (d) => d.class === triggerClass && d.confidence >= 0.8,
+                );
+                if (objectDetected !== isTriggerActive) {
+                    isTriggerActive = objectDetected;
+                    ledIndicator.classList.toggle("on", isTriggerActive);
+                    ledStatusText.textContent = isTriggerActive ? "ON" : "OFF";
+                }
+
+                if (detections.length === 0) {
+                    detectionsList.innerHTML =
+                        '<p class="no-detections">No objects detected</p>';
+                    return;
+                }
+
+                let html = "";
+                detections.forEach((det) => {
+                    const isTrigger = det.class === triggerClass;
+                    const confidencePercent = (det.confidence * 100).toFixed(0);
+                    let confClass = "low";
+                    if (det.confidence >= 0.8) confClass = "high";
+                    else if (det.confidence >= 0.5) confClass = "medium";
+
+                    html += `
+                    <div class="detection-item ${isTrigger ? "active-trigger-item" : ""}">
+                        <div class="detection-info">
+                            <div class="detection-class ${isTrigger ? "active-trigger" : ""}">${det.class}</div>
+                            <div class="detection-bbox">${det.bbox.x1.toFixed(0)}, ${det.bbox.y1.toFixed(0)} → ${det.bbox.x2.toFixed(0)}, ${det.bbox.y2.toFixed(0)}</div>
+                        </div>
+                        <div class="detection-confidence">
+                            <div class="confidence-value ${confClass}">${confidencePercent}%</div>
+                            <div class="confidence-label">conf</div>
+                        </div>
+                    </div>
+                `;
+                });
+                detectionsList.innerHTML = html;
+            }
+
+            async function detectLoop() {
+                if (!isRunning) return;
+
+                const now = performance.now();
+                const delta = now - lastFrameTime;
+
+                if (delta >= 33) {
+                    await fetchFrame();
+                    lastFrameTime = performance.now();
+                    frameCount++;
+                }
+
+                animationId = requestAnimationFrame(detectLoop);
+            }
+
+            async function startDetection() {
+                if (isRunning) return;
+
+                const camInput = document.getElementById("camera-source");
+                const ipcamInput = document.getElementById("ipcam-url");
+                cameraSource =
+                    currentMode === "camera"
+                        ? camInput.value.trim()
+                        : ipcamInput.value.trim();
+
+                showLoading("Starting...");
+
+                try {
+                    await fetch(
+                        "/camera/set?source=" +
+                            encodeURIComponent(cameraSource),
+                        { method: "POST" },
+                    );
+                    await updateTriggerClass();
+
+                    isRunning = true;
+                    lastFrameTime = performance.now();
+                    frameCount = 0;
+
+                    fpsUpdateInterval = setInterval(() => {
+                        fpsEl.textContent = frameCount;
+                        frameCount = 0;
+                    }, 1000);
+
+                    detectLoop();
+                } catch (e) {
+                    console.error("Failed to start detection:", e);
+                    showLoading("Error: " + e.message);
+                }
+            }
+
+            function stopDetection() {
+                showLoading("Stopped");
+                isRunning = false;
+
+                if (animationId) {
+                    cancelAnimationFrame(animationId);
+                    animationId = null;
+                }
+
+                if (fpsUpdateInterval) {
+                    clearInterval(fpsUpdateInterval);
+                    fpsUpdateInterval = null;
+                }
+
+                fpsEl.textContent = "0";
+                ledIndicator.classList.remove("on");
+                ledStatusText.textContent = "OFF";
+                isTriggerActive = false;
+
+                const isDark =
+                    document.documentElement.getAttribute("data-theme") ===
+                    "dark";
+                ctx.fillStyle = isDark
+                    ? "rgba(15, 23, 42, 0.5)"
+                    : "rgba(0,0,0,0.1)";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = "#ff4757";
+                ctx.font = "18px Inter";
+                ctx.textAlign = "center";
+                ctx.fillText(
+                    "Detection Stopped",
+                    canvas.width / 2,
+                    canvas.height / 2,
+                );
+            }
+
+            function toggleTheme() {
+                const currentTheme =
+                    document.documentElement.getAttribute("data-theme");
+                const newTheme = currentTheme === "dark" ? "light" : "dark";
+                document.documentElement.setAttribute("data-theme", newTheme);
+                localStorage.setItem("theme", newTheme);
+                updateToggleIcon(newTheme);
+
+                // Redraw current state to match theme
+                if (!isRunning) {
+                    showLoading("Theme switched");
+                }
+            }
+
+            function updateToggleIcon(theme) {
+                const btn = document.getElementById("theme-btn");
+                if (theme === "dark") {
+                    btn.innerHTML =
+                        '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></svg>';
+                } else {
+                    btn.innerHTML =
+                        '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>';
+                }
+            }
+
+            // Initialize theme
+            const savedTheme = localStorage.getItem("theme") || "light";
+            document.documentElement.setAttribute("data-theme", savedTheme);
+            updateToggleIcon(savedTheme);
+        </script>
+    </body>
+</html>
