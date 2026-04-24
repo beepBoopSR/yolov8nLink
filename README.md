@@ -11,15 +11,9 @@ Built on the [LytheESP32Framework](https://github.com/Arnvvch/LytheESP32Framewor
 
 Real-time object detection server using YOLOv8n and FastAPI. Detects objects via webcam, streams annotated video to browser, and triggers ESP32 LED when target class (configurable) is detected with confidence ≥ 80%.
 
-### Stack
-
-- **Backend:** FastAPI, OpenCV, Ultralytics YOLO
-- **Firmware:** ESP32 using [Lythe ESP32 Framework](https://github.com/Arnvvch/LytheESP32-Framework) by Arnvvch
-- **Frontend:** Vanilla HTML/JS, canvas rendering, Server-Sent Events-style polling
-
 ### ESP32 Integration
 
-Connected to ESP32 using [Lythe ESP32 Framework](https://github.com/Arnvvch/LytheESP32-Framework) by Arnvvch:
+Connected to ESP32 using [LytheESP32Framework](https://github.com/Arnvvch/LytheESP32Framework) by Arnvvch:
 
 - Endpoint: `http://<ESP32-IP>/api/module/led`
 - Method: `PUT` or `POST`
